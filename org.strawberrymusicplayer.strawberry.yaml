@@ -1,6 +1,6 @@
 app-id: org.strawberrymusicplayer.strawberry
 runtime: org.kde.Platform
-runtime-version: '6.8'
+runtime-version: 5.15-21.08
 sdk: org.kde.Sdk
 rename-icon: strawberry
 command: start-strawberry
@@ -39,48 +39,55 @@ finish-args:
   - --talk-name=org.mpris.MediaPlayer2.Player
   - --own-name=org.mpris.MediaPlayer2.strawberry
   - --talk-name=org.kde.StatusNotifierWatcher
+  - --own-name=org.kde.StatusNotifierItem-2-2
   - --talk-name=org.kde.kglobalaccel
-
 modules:
   - name: boost
     buildsystem: simple
     build-commands:
-      - ./bootstrap.sh  --prefix="${FLATPAK_DEST}"
-      - ./b2 --without-mpi --without-graph_parallel -j ${FLATPAK_BUILDER_N_JOBS}
-      - ./b2 --without-mpi --without-graph_parallel -j ${FLATPAK_BUILDER_N_JOBS} headers
-      - ./b2 --without-mpi --without-graph_parallel install
+      - ./bootstrap.sh --prefix="${FLATPAK_DEST}"
+      - ./b2 -j ${FLATPAK_BUILDER_N_JOBS}
+      - ./b2 -j ${FLATPAK_BUILDER_N_JOBS} headers
+      - ./b2 install
     sources:
       - type: archive
-        url: https://boostorg.jfrog.io/artifactory/main/release/1.86.0/source/boost_1_86_0.tar.gz
-        sha256: 2575e74ffc3ef1cd0babac2c1ee8bdb5782a0ee672b1912da40e5b4b591ca01f
+        url: https://archives.boost.io/release/1.77.0/source/boost_1_77_0.tar.gz
+        sha256: 5347464af5b14ac54bb945dc68f1dd7c56f0dad7262816b956138fc53bcc0131
         x-checker-data:
           type: anitya
           project-id: 6845
           url-template: https://boostorg.jfrog.io/artifactory/main/release/$version/source/boost_${version0}_${version1}_$version2.tar.gz
   - name: chromaprint
-    config-opts:
-      - -DCMAKE_BUILD_TYPE=Release
-    buildsystem: cmake-ninja
+    buildsystem: cmake
     sources:
       - type: archive
-        url: https://github.com/acoustid/chromaprint/releases/download/v1.5.1/chromaprint-1.5.1.tar.gz
-        sha256: a1aad8fa3b8b18b78d3755b3767faff9abb67242e01b478ec9a64e190f335e1c
+        url: https://github.com/acoustid/chromaprint/releases/download/v1.5.0/chromaprint-1.5.0.tar.gz
+        sha256: 573a5400e635b3823fc2394cfa7a217fbb46e8e50ecebd4a61991451a8af766a
         x-checker-data:
           type: anitya
           project-id: 286
           url-template: https://github.com/acoustid/chromaprint/releases/download/v$version/chromaprint-$version.tar.gz
-  - name: libebur128
-    buildsystem: cmake-ninja
-    config-opts:
-      - -DCMAKE_BUILD_TYPE=Release
+  - name: protobuf
+    cleanup:
+      - /bin/protoc
     sources:
-      - type: git
-        url: https://github.com/jiixyj/libebur128.git
-        tag: v1.2.6
-        commit: 67b33abe1558160ed76ada1322329b0e9e058b02
+      - type: archive
+        url: https://github.com/protocolbuffers/protobuf/releases/download/v3.19.1/protobuf-cpp-3.19.1.tar.gz
+        sha256: 645192532f28254152b51c01868efdf9b766b1dbe49c77cccd6efcdb2d7c7bc2
         x-checker-data:
-          type: git
-          tag-pattern: v([\d]\.[\d]\.[\d])
+          type: json
+          url: https://api.github.com/repos/protocolbuffers/protobuf/releases/latest
+          version-query: .tag_name |sub("v";"")
+          url-query: .assets[] | select(.name=="protobuf-cpp-"+ $version +".tar.gz")
+            | .browser_download_url
+  - name: taglib
+    buildsystem: cmake
+    cleanup:
+      - /bin/
+    sources:
+      - type: archive
+        url: https://github.com/taglib/taglib/releases/download/v1.12/taglib-1.12.tar.gz
+        sha256: 7fccd07669a523b07a15bd24c8da1bbb92206cb19e9366c3692af3d79253b703
   - name: libcdio
     config-opts:
       - --without-cd-drive
@@ -119,21 +126,24 @@ modules:
           project-id: 10017
           url-template: https://github.com/libmtp/libmtp/releases/download/v$version/libmtp-$version.tar.gz
   - name: strawberry
-    buildsystem: cmake-ninja
-    config-opts:
-      - -DCMAKE_BUILD_TYPE=Release
+    buildsystem: cmake
     post-install:
       - install -Dm755 start-strawberry.sh /app/bin/start-strawberry
     sources:
       - type: archive
-        url: https://github.com/strawberrymusicplayer/strawberry/releases/download/1.2.3/strawberry-1.2.3.tar.xz
-        sha256: 187b05a0907948dbeef2cdb3fb263f2a95476949a18c2aab98a1df0f454756fc
+        url: https://github.com/strawberrymusicplayer/strawberry/releases/download/1.0.0/strawberry-1.0.0.tar.xz
+        sha256: 21e1fb70f03450a6b9777d0afb271a7a7922258ebb364c86b8104327496ca7a1
         x-checker-data:
           type: json
-          url: https://api.github.com/repos/strawberrymusicplayer/strawberry/releases/latest
+          url: https://api.github.com/repos/strawberrymusicplayer/strawberry/releases/51384997
           version-query: .tag_name
           url-query: .assets[] | select(.name=="strawberry-"+ $version +".tar.xz")
             | .browser_download_url
+      - type: patch
+        paths:
+          - patches/0001-add-type-to-appdata.xml.patch
+          - patches/0002-add-oars-content-rating.patch
+          - patches/0003-add-release-info.patch
       - type: script
         dest-filename: start-strawberry.sh
         commands:
